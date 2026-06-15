@@ -35,7 +35,7 @@ async def cmd_start(message: types.Message):
 @dp.callback_query_handler(lambda c: c.data == "status")
 async def cb_status(call: types.CallbackQuery):
     await call.answer()
-    await call.message.edit_text("✅ Бот работает, сканер активен.\n💰 BTC/USDT\n⏱ 5 минут\n🔄 API: KuCoin", reply_markup=main_menu())
+    await call.message.edit_text("✅ Бот работает, сканер активен.\n💰 BTC/USDT\n⏱ 5 минут", reply_markup=main_menu())
 
 @dp.callback_query_handler(lambda c: c.data == "help")
 async def cb_help(call: types.CallbackQuery):
@@ -66,7 +66,6 @@ def calc_ema(closes, period):
         ema = price * k + ema * (1 - k)
     return ema
 
-# ========== KUCOIN API (РАБОТАЕТ В СИНГАПУРЕ) ==========
 async def get_kucoin_candles(session, limit=120):
     url = f"https://api.kucoin.com/api/v1/market/candles?type=5min&symbol={SYMBOL}&limit={limit}"
     try:
@@ -98,7 +97,7 @@ async def send_signal(signal):
     await bot.send_message(ADMIN_ID, text, parse_mode="HTML")
 
 async def scanner():
-    logger.info("🟢 Сканер KuCoin запущен!")
+    logger.info("🟢 Сканер запущен!")
     last_time = 0
     async with aiohttp.ClientSession() as session:
         while True:
@@ -114,8 +113,6 @@ async def scanner():
                 if not m5:
                     await asyncio.sleep(30)
                     continue
-                
-                logger.info(f"✅ Данные KuCoin: {len(m5['closes'])} свечей")
                 
                 cci = calc_cci(m5["highs"], m5["lows"], m5["closes"])
                 if len(cci) < 20:
@@ -158,7 +155,7 @@ async def scanner():
 
 async def on_startup(dp):
     asyncio.create_task(scanner())
-    logger.info("✅ Бот KuCoin запущен!")
+    logger.info("✅ Бот запущен!")
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
