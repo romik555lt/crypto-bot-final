@@ -14,11 +14,10 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = "8837143109:AAEaL3ZlBPSVmM0EtAAexHkb_lzrcjTagpc"
 ADMIN_ID = 1038754614
 
-SYMBOL = "BTCUSDT"
+SYMBOL = "BTC-USDT"
 STOP_POINTS = 100.0
 TAKE_POINTS = 300.0
 
-# ========== КЛАВИАТУРА С КНОПКАМИ ==========
 def main_menu():
     keyboard = [
         [InlineKeyboardButton("📊 Статус", callback_data="status")],
@@ -31,28 +30,18 @@ dp = Dispatcher(bot)
 
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
-    await message.answer(
-        "👋 Привет! Бот работает.\n\nВыбери действие:",
-        reply_markup=main_menu()
-    )
+    await message.answer("👋 Привет! Бот работает.\n\nВыбери действие:", reply_markup=main_menu())
 
 @dp.callback_query_handler(lambda c: c.data == "status")
 async def cb_status(call: types.CallbackQuery):
     await call.answer()
-    await call.message.edit_text(
-        "✅ Бот работает, сканер активен.\n💰 BTC/USDT\n⏱ 5 минут",
-        reply_markup=main_menu()
-    )
+    await call.message.edit_text("✅ Бот работает, сканер активен.\n💰 BTC/USDT\n⏱ 5 минут\n🔄 API: KuCoin", reply_markup=main_menu())
 
 @dp.callback_query_handler(lambda c: c.data == "help")
 async def cb_help(call: types.CallbackQuery):
     await call.answer()
-    await call.message.edit_text(
-        "ℹ️ Бот анализирует CCI и EMA.\n🟢 LONG — покупка\n🔴 SHORT — продажа",
-        reply_markup=main_menu()
-    )
+    await call.message.edit_text("ℹ️ Бот анализирует CCI и EMA.\n🟢 LONG — покупка\n🔴 SHORT — продажа", reply_markup=main_menu())
 
-# ========== ИНДИКАТОРЫ ==========
 def calc_cci(highs, lows, closes, period=14):
     if len(closes) < period:
         return [0] * len(closes)
@@ -77,19 +66,22 @@ def calc_ema(closes, period):
         ema = price * k + ema * (1 - k)
     return ema
 
-async def get_binance_candles(session, limit=120):
-    url = f"https://api.binance.com/api/v3/klines?symbol={SYMBOL}&interval=5m&limit={limit}"
+# ========== KUCOIN API (РАБОТАЕТ В СИНГАПУРЕ) ==========
+async def get_kucoin_candles(session, limit=120):
+    url = f"https://api.kucoin.com/api/v1/market/candles?type=5min&symbol={SYMBOL}&limit={limit}"
     try:
         async with session.get(url, timeout=10) as response:
             if response.status == 200:
                 data = await response.json()
-                return {
-                    "highs": [float(c[2]) for c in data],
-                    "lows": [float(c[3]) for c in data],
-                    "closes": [float(c[4]) for c in data],
-                }
+                if data["code"] == "200000":
+                    klines = data["data"]
+                    return {
+                        "highs": [float(k[3]) for k in klines],
+                        "lows": [float(k[4]) for k in klines],
+                        "closes": [float(k[2]) for k in klines],
+                    }
     except Exception as e:
-        logger.error(f"Ошибка: {e}")
+        logger.error(f"KuCoin ошибка: {e}")
     return None
 
 async def send_signal(signal):
@@ -106,7 +98,7 @@ async def send_signal(signal):
     await bot.send_message(ADMIN_ID, text, parse_mode="HTML")
 
 async def scanner():
-    logger.info("🟢 Сканер запущен!")
+    logger.info("🟢 Сканер KuCoin запущен!")
     last_time = 0
     async with aiohttp.ClientSession() as session:
         while True:
@@ -118,10 +110,12 @@ async def scanner():
                     continue
                 await asyncio.sleep(3)
                 
-                m5 = await get_binance_candles(session)
+                m5 = await get_kucoin_candles(session)
                 if not m5:
                     await asyncio.sleep(30)
                     continue
+                
+                logger.info(f"✅ Данные KuCoin: {len(m5['closes'])} свечей")
                 
                 cci = calc_cci(m5["highs"], m5["lows"], m5["closes"])
                 if len(cci) < 20:
@@ -164,7 +158,7 @@ async def scanner():
 
 async def on_startup(dp):
     asyncio.create_task(scanner())
-    logger.info("✅ Бот запущен!")
+    logger.info("✅ Бот KuCoin запущен!")
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
