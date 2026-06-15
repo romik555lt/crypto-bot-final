@@ -11,7 +11,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = "8504074176:AAGPg8H71gLAMDK1a8lpQU48UuyLbLm0itw"
+BOT_TOKEN = "8837143109:AAEaL3ZlBPSVmM0EtAAexHkb_lzrcjTagpc"
 ADMIN_ID = 1038754614
 
 SYMBOL = "BTCUSDT"
