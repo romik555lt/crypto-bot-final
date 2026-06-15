@@ -18,14 +18,7 @@ SYMBOL = "BTCUSDT"
 STOP_POINTS = 100.0
 TAKE_POINTS = 300.0
 
-# ========== УДАЛЕНИЕ ВЕБХУКА ==========
-async def delete_webhook():
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook") as resp:
-            result = await resp.json()
-            logger.info(f"Удаление вебхука: {result}")
-
-# ========== КЛАВИАТУРА ==========
+# ========== КЛАВИАТУРА С КНОПКАМИ ==========
 def main_menu():
     keyboard = [
         [InlineKeyboardButton("📊 Статус", callback_data="status")],
@@ -38,18 +31,28 @@ dp = Dispatcher(bot)
 
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
-    await message.answer("👋 Привет! Бот работает.\n\nВыбери действие:", reply_markup=main_menu())
+    await message.answer(
+        "👋 Привет! Бот работает.\n\nВыбери действие:",
+        reply_markup=main_menu()
+    )
 
 @dp.callback_query_handler(lambda c: c.data == "status")
 async def cb_status(call: types.CallbackQuery):
     await call.answer()
-    await call.message.edit_text("✅ Бот работает, сканер активен.\n💰 BTC/USDT\n⏱ 5 минут", reply_markup=main_menu())
+    await call.message.edit_text(
+        "✅ Бот работает, сканер активен.\n💰 BTC/USDT\n⏱ 5 минут",
+        reply_markup=main_menu()
+    )
 
 @dp.callback_query_handler(lambda c: c.data == "help")
 async def cb_help(call: types.CallbackQuery):
     await call.answer()
-    await call.message.edit_text("ℹ️ Бот анализирует CCI и EMA.\n🟢 LONG — покупка\n🔴 SHORT — продажа", reply_markup=main_menu())
+    await call.message.edit_text(
+        "ℹ️ Бот анализирует CCI и EMA.\n🟢 LONG — покупка\n🔴 SHORT — продажа",
+        reply_markup=main_menu()
+    )
 
+# ========== ИНДИКАТОРЫ ==========
 def calc_cci(highs, lows, closes, period=14):
     if len(closes) < period:
         return [0] * len(closes)
@@ -75,7 +78,7 @@ def calc_ema(closes, period):
     return ema
 
 async def get_binance_candles(session, limit=120):
-    url = f"https://data.binance.com/api/v3/klines?symbol={SYMBOL}&interval=5m&limit={limit}"
+    url = f"https://api.binance.com/api/v3/klines?symbol={SYMBOL}&interval=5m&limit={limit}"
     try:
         async with session.get(url, timeout=10) as response:
             if response.status == 200:
@@ -105,7 +108,6 @@ async def send_signal(signal):
 async def scanner():
     logger.info("🟢 Сканер запущен!")
     last_time = 0
-    await delete_webhook()
     async with aiohttp.ClientSession() as session:
         while True:
             try:
